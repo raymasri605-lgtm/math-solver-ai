@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rabih's AI Math Solver</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; text-align: center; padding: 50px; }
+        .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 600px; margin: auto; }
+        h1 { color: #1a73e8; }
+        input[type="file"] { margin: 20px 0; }
+        button { background: #1a73e8; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #1557b0; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #solution { margin-top: 20px; text-align: left; background: #f9f9f9; padding: 15px; border-radius: 10px; display: none; white-space: pre-wrap; max-height: 500px; overflow-y: auto; border-left: 4px solid #1a73e8; }
+        .error { color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 5px; margin-top: 10px; display: none; }
+        .loading { color: #1a73e8; font-style: italic; }
+        footer { margin-top: 40px; font-weight: bold; color: #555; }
+        #imagePreview { max-width: 200px; margin-top: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🧮 Math Solver AI</h1>
+    <p>Upload a photo of your math problem for a step-by-step solution.</p>
+    
+    <input type="file" id="imageInput" accept="image/*">
+    <img id="imagePreview" style="display: none;">
+    <br>
+    <button id="solveBtn" onclick="solveMath()">Solve Homework</button>
+
+    <div id="errorMsg" class="error"></div>
+
+    <div id="solution">
+        <h3>📝 Step-by-Step Solution:</h3>
+        <p id="responseText"></p>
+    </div>
+</div>
+
+<footer>Made by Rabih</footer>
+
+<script>
+    const API_ENDPOINT = 'http://localhost:5000/api/solve';
+
+    // Preview image when selected
+    document.getElementById('imageInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const preview = document.getElementById('imagePreview');
+                preview.src = event.target.result;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    async function solveMath() {
+        const fileInput = document.getElementById('imageInput');
+        const responseDiv = document.getElementById('solution');
+        const responseText = document.getElementById('responseText');
+        const errorMsg = document.getElementById('errorMsg');
+        const solveBtn = document.getElementById('solveBtn');
+
+        errorMsg.style.display = 'none';
+
+        if (fileInput.files.length === 0) {
+            errorMsg.innerText = "❌ Please upload a photo first!";
+            errorMsg.style.display = 'block';
+            return;
+        }
+
+        solveBtn.disabled = true;
+        responseText.innerText = "🤔 Analyzing your math problem...";
+        responseDiv.style.display = "block";
+
+        try {
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = async function(event) {
+                const base64Image = event.target.result.split(',')[1]; // Remove data:image/png;base64, prefix
+
+                try {
+                    const response = await fetch(API_ENDPOINT, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            image: base64Image,
+                            fileName: file.name
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Server error: ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        responseText.innerText = data.solution;
+                    } else {
+                        throw new Error(data.error || 'Unknown error occurred');
+                    }
+                } catch (error) {
+                    responseText.innerText = `❌ Error: ${error.message}`;
+                    errorMsg.innerText = `Failed to solve: ${error.message}`;
+                    errorMsg.style.display = 'block';
+                }
+
+                solveBtn.disabled = false;
+            };
+
+            reader.readAsDataURL(file);
+        } catch (error) {
+            errorMsg.innerText = `Error processing image: ${error.message}`;
+            errorMsg.style.display = 'block';
+            solveBtn.disabled = false;
+        }
+    }
+</script>
+
+</body>
+</html>
